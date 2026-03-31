@@ -27,7 +27,7 @@ flowchart TD
 
 ---
 
-_This diagram visually summarizes the main steps in your pipeline, from input to final dehazed output, highlighting both preprocessing and postprocessing stages._
+_This diagram visually summarizes the main steps in the pipeline, from input to final dehazed output, highlighting both preprocessing and postprocessing stages._
 # Image Dehazing using DCP and CNN/UNet
 
 This project implements an image dehazing pipeline using the Dark Channel Prior (DCP) method, with deep learning-based refinement using CNN and UNet architectures. The pipeline removes haze from images by estimating the transmission map and atmospheric light, then refines the transmission map using neural networks for improved results.
