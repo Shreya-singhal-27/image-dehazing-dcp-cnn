@@ -3,44 +3,71 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 import cv2
+import os
+from tqdm import tqdm
+
 from models.unet import UNet
 
-def generate_synthetic():
-    # random clean image
-    clean = np.random.rand(256,256,3)
 
-    # random transmission
-    t = np.random.uniform(0.3,1,(256,256))
+# ----------- Haze Generator -----------
+def add_haze(image):
+    h, w, _ = image.shape
 
-    A = np.random.uniform(0.7,1,(1,1,3))
+    # realistic depth gradient
+    depth = np.tile(np.linspace(0.1, 1, w), (h, 1))
 
-    hazy = clean * t[:,:,None] + A*(1-t[:,:,None])
+    beta = np.random.uniform(0.6, 1.8)
+    transmission = np.exp(-beta * depth)
 
-    return hazy.astype(np.float32), t.astype(np.float32)
+    A = np.random.uniform(0.7, 1, (1, 1, 3))
 
-device = torch.device("cpu")
+    hazy = image * transmission[:, :, None] + A * (1 - transmission[:, :, None])
+
+    return hazy.astype(np.float32), transmission.astype(np.float32)
+
+
+# ----------- Setup -----------
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = UNet().to(device)
 
-criterion = nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr=1e-3)
+criterion = nn.L1Loss()
+optimizer = optim.Adam(model.parameters(), lr=1e-4)
 
-epochs = 3
+clean_folder = "dataset/clean"
 
+epochs = 10
+
+
+# ----------- Training -----------
 for epoch in range(epochs):
     total_loss = 0
+    files = os.listdir(clean_folder)
 
-    for i in range(200):
-        hazy, t = generate_synthetic()
+    for file in tqdm(files):
 
-        inp = np.transpose(hazy, (2,0,1))
-        t = t[np.newaxis,:,:]
+        path = os.path.join(clean_folder, file)
 
-        x = np.concatenate([inp, t], axis=0)
-        x = torch.from_numpy(x).float().unsqueeze(0)
+        img = cv2.imread(path)
+        if img is None:
+            continue
 
-        y = torch.from_numpy(t).float().unsqueeze(0)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img = cv2.resize(img, (256, 256))
+        img = img.astype(np.float32) / 255.0
+
+        hazy, transmission = add_haze(img)
+
+        # prepare input
+        hazy = np.transpose(hazy, (2, 0, 1))
+        transmission = transmission[np.newaxis, :, :]
+
+        x = np.concatenate([hazy, transmission], axis=0)
+
+        x = torch.from_numpy(x).float().unsqueeze(0).to(device)
+        y = torch.from_numpy(transmission).float().unsqueeze(0).to(device)
 
         pred = model(x)
+
         loss = criterion(pred, y)
 
         optimizer.zero_grad()
@@ -49,7 +76,9 @@ for epoch in range(epochs):
 
         total_loss += loss.item()
 
-    print("Epoch:", epoch, "Loss:", total_loss/200)
+    print(f"Epoch {epoch+1}/{epochs} - Loss: {total_loss/len(files):.6f}")
 
+
+# ----------- Save weights -----------
 torch.save(model.state_dict(), "unet_weights.pth")
-print("Training complete. Weights saved.")  
+print("Training complete. Weights saved as unet_weights.pth")
