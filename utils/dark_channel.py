@@ -14,13 +14,14 @@ def get_dark_channel(image, patch_size=15):
         dark_channel: grayscale dark channel image
     """
     
-    # Convert to float [0,1]
+    # DIP: intensity normalization to make physical model math scale-consistent.
     image = image.astype(np.float32) / 255.0
     
-    # Take minimum among RGB channels
+    # DIP (Dark Channel Prior): per-pixel min over RGB, min_c I_c(x).
     min_channel = np.min(image, axis=2)
     
-    # Apply minimum filter (erosion)
+    # DIP (Morphology): local erosion approximates patch-wise minimum,
+    # min_{y in Omega(x)} min_c I_c(y), i.e., the dark channel.
     kernel = cv2.getStructuringElement(
         cv2.MORPH_RECT, 
         (patch_size, patch_size)

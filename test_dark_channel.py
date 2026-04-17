@@ -11,27 +11,34 @@ from utils.unet_refine import refine_transmission_unet
 # ---------------- Load Image ----------------
 image = cv2.imread("dataset/hazy/hazy_img1.jpg")
 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+# DIP preprocessing: normalize to [0,1] for physical-model computations.
 image = image.astype(np.float32) / 255.0
 
 
 # ---------------- Dark Channel ----------------
+# DIP prior: computes local patch-wise dark response for haze cue extraction.
 dark = get_dark_channel(image)
 
 
 # ---------------- Atmospheric Light ----------------
+# Estimate global airlight A from haze-dominant bright pixels in dark channel.
 A = estimate_atmospheric_light(image, dark)
 
 
 # ---------------- Transmission ----------------
+# Coarse transmission t(x) from DCP equation and local minimum filtering.
 transmission = estimate_transmission(image, A)
 
 
 # ---------------- UNet Refinement ----------------
+# Learning-based refinement: fixes halo/block artifacts from coarse DCP t(x).
 refined = refine_transmission_unet(image, transmission)
+# Extra DIP smoothing for spatial continuity in transmission.
 refined = cv2.GaussianBlur(refined, (7, 7), 0)
 
 
 # ---------------- Recover Image ----------------
+# Physical inversion of haze model to recover scene radiance J(x).
 dehazed = recover_image(image, refined, A)
 
 

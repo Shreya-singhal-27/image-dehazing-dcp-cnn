@@ -13,14 +13,17 @@ from models.unet import UNet
 def add_haze(image):
     h, w, _ = image.shape
 
-    # realistic depth gradient
+    # DIP/physics proxy: synthetic depth map d(x) via horizontal gradient.
     depth = np.tile(np.linspace(0.1, 1, w), (h, 1))
 
+    # Beer-Lambert law: t(x)=exp(-beta*d(x)) controls transmission decay.
     beta = np.random.uniform(0.6, 1.8)
     transmission = np.exp(-beta * depth)
 
+    # Global atmospheric light A sampled per RGB channel.
     A = np.random.uniform(0.7, 1, (1, 1, 3))
 
+    # Haze image synthesis: I(x)=J(x)t(x)+A(1-t(x)).
     hazy = image * transmission[:, :, None] + A * (1 - transmission[:, :, None])
 
     return hazy.astype(np.float32), transmission.astype(np.float32)
@@ -57,7 +60,7 @@ for epoch in range(epochs):
 
         hazy, transmission = add_haze(img)
 
-        # prepare input
+        # Model input = RGB hazy image + coarse/target transmission channel (4-channel tensor).
         hazy = np.transpose(hazy, (2, 0, 1))
         transmission = transmission[np.newaxis, :, :]
 
@@ -68,6 +71,7 @@ for epoch in range(epochs):
 
         pred = model(x)
 
+        # L1/MAE on transmission encourages edge-preserving refinement.
         loss = criterion(pred, y)
 
         optimizer.zero_grad()

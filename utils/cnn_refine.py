@@ -10,7 +10,7 @@ def refine_transmission(image, transmission):
     model = TransmissionRefinementCNN().to(device)
     model.eval()
 
-    # prepare input
+    # Input stacking follows the same hybrid idea: RGB guidance + coarse transmission.
     image = np.transpose(image, (2, 0, 1))
     transmission = transmission[np.newaxis, :, :]
 
@@ -20,6 +20,7 @@ def refine_transmission(image, transmission):
     with torch.no_grad():
         refined = model(input_tensor).squeeze().cpu().numpy()
 
+    # Enforce valid transmission interval used by atmospheric reconstruction.
     refined = np.clip(refined, 0.1, 1)
 
     return refined

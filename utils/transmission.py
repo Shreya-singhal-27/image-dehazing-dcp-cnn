@@ -16,23 +16,25 @@ def estimate_transmission(image, atmospheric_light, omega=0.95, patch_size=15):
         transmission map
     """
     
-    # Normalize image by atmospheric light
+    # DIP/physics: normalize by atmospheric light A to estimate haze thickness.
     norm_image = image / atmospheric_light
     
-    # Minimum across channels
+    # DCP step: min over channels, min_c (I_c / A_c).
     min_channel = np.min(norm_image, axis=2)
     
-    # Minimum filter
+    # Morphological min filter over local patch Omega(x).
     kernel = cv2.getStructuringElement(
         cv2.MORPH_RECT,
         (patch_size, patch_size)
     )
     
+    # DCP transmission model: t(x)=1-omega*min_{y in Omega(x)} min_c I_c(y)/A_c.
     transmission = 1 - omega * cv2.erode(min_channel, kernel)
     
+    # DIP smoothing: suppress block artifacts/noise from hard min operations.
     transmission = cv2.GaussianBlur(transmission, (15, 15), 0)
     
-    # Avoid very small values
+    # Numerical stability for reconstruction; prevents division blow-up later.
     transmission = np.clip(transmission, 0.1, 1)
     
     return transmission

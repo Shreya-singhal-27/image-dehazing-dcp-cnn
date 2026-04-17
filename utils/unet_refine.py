@@ -14,13 +14,14 @@ def refine_transmission_unet(image, transmission):
 
     h, w = transmission.shape
 
-    # resize to multiple of 32
+    # UNet encoder/decoder downsamples by powers of 2; use multiple-of-32 size for shape safety.
     new_h = (h // 32) * 32
     new_w = (w // 32) * 32
 
     image_resized = cv2.resize(image, (new_w, new_h))
     transmission_resized = cv2.resize(transmission, (new_w, new_h))
 
+    # Input design: [R,G,B,coarse_t] so model learns transmission correction from both cues.
     image_resized = np.transpose(image_resized, (2, 0, 1))
     transmission_resized = transmission_resized[np.newaxis, :, :]
 
@@ -31,6 +32,7 @@ def refine_transmission_unet(image, transmission):
         refined = model(input_tensor).squeeze().cpu().numpy()
 
     refined = cv2.resize(refined, (w, h))
+    # Keep physical transmission bounds for stable dehazing reconstruction.
     refined = np.clip(refined, 0.1, 1)
 
     return refined
