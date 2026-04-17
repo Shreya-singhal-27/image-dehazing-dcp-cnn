@@ -14,8 +14,10 @@ def get_dark_channel(image, patch_size=15):
         dark_channel: grayscale dark channel image
     """
     
-    # DIP: intensity normalization to make physical model math scale-consistent.
-    image = image.astype(np.float32) / 255.0
+    # Keep scale consistent: normalize only if input is in 0..255.
+    image = image.astype(np.float32)
+    if image.max() > 1.0:
+        image = image / 255.0
     
     # DIP (Dark Channel Prior): per-pixel min over RGB, min_c I_c(x).
     min_channel = np.min(image, axis=2)

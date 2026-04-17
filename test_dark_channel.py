@@ -44,7 +44,9 @@ dehazed = recover_image(image, refined, A)
 
 # ---------------- Save Outputs ----------------
 # ---------------- Save Outputs ----------------
-cv2.imwrite("outputs/input.png", (image * 255).astype(np.uint8))
+# OpenCV writes images as BGR. Convert from RGB to keep colors correct in saved files.
+input_rgb = (image * 255).astype(np.uint8)
+cv2.imwrite("outputs/input.png", cv2.cvtColor(input_rgb, cv2.COLOR_RGB2BGR))
 
 dark_vis = cv2.normalize(dark, None, 0, 255, cv2.NORM_MINMAX)
 cv2.imwrite("outputs/dark_channel.png", dark_vis.astype(np.uint8))
@@ -55,19 +57,21 @@ cv2.imwrite("outputs/transmission.png", trans_vis.astype(np.uint8))
 ref_vis = cv2.normalize(refined, None, 0, 255, cv2.NORM_MINMAX)
 cv2.imwrite("outputs/refined_transmission.png", ref_vis.astype(np.uint8))
 
-cv2.imwrite("outputs/dehazed.png", (dehazed * 255).astype(np.uint8))
+dehazed_rgb = (dehazed * 255).astype(np.uint8)
+cv2.imwrite("outputs/dehazed.png", cv2.cvtColor(dehazed_rgb, cv2.COLOR_RGB2BGR))
 
 
 # ---------------- Comparison Image ----------------
 comparison = np.hstack([
-    (image * 255).astype(np.uint8),
+    input_rgb,
     cv2.cvtColor(dark_vis.astype(np.uint8), cv2.COLOR_GRAY2RGB),
     cv2.cvtColor(trans_vis.astype(np.uint8), cv2.COLOR_GRAY2RGB),
     cv2.cvtColor(ref_vis.astype(np.uint8), cv2.COLOR_GRAY2RGB),
-    (dehazed * 255).astype(np.uint8)
+    dehazed_rgb
 ])
 
-cv2.imwrite("outputs/comparison.png", comparison)
+# Convert full comparison strip to BGR before saving via OpenCV.
+cv2.imwrite("outputs/comparison.png", cv2.cvtColor(comparison, cv2.COLOR_RGB2BGR))
 
 
 print("Pipeline complete. Results saved in outputs/")
